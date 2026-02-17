@@ -65,6 +65,9 @@ func (k *Kitty) Play(ctx context.Context) {
 	if cfg.LaserCount < 0 {
 		cfg.LaserCount = 0
 	}
+	if cfg.SpiderCount < 0 {
+		cfg.SpiderCount = 0
+	}
 	for i := 0; i < cfg.SnakeCount; i++ {
 		k.objects = append(k.objects, NewSnake(cfg.SnakeConfig))
 	}
@@ -76,6 +79,9 @@ func (k *Kitty) Play(ctx context.Context) {
 	}
 	for i := 0; i < cfg.LaserCount; i++ {
 		k.objects = append(k.objects, NewLaserPointer(cfg.LaserConfig))
+	}
+	for i := 0; i < cfg.SpiderCount; i++ {
+		k.objects = append(k.objects, NewSpider(cfg.SpiderConfig))
 	}
 
 
@@ -157,6 +163,22 @@ func (k *Kitty) handleLaserHits() {
 		for _, p := range lasers {
 			if absInt(p.X-bx) <= 1 && absInt(p.Y-by) <= 1 {
 				b.Hit(bx, by)
+				break
+			}
+		}
+	}
+	for _, o := range k.objects {
+		s, ok := o.(*Spider)
+		if !ok {
+			continue
+		}
+		sx, sy, ok := s.HitPoint(width, height)
+		if !ok {
+			continue
+		}
+		for _, p := range lasers {
+			if absInt(p.X-sx) <= 1 && absInt(p.Y-sy) <= 1 {
+				s.Hit(sx, sy)
 				break
 			}
 		}

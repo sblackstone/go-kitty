@@ -25,15 +25,22 @@ type LaserConfig struct {
 	InitialDelayMax int
 }
 
+type SpiderConfig struct {
+	Color           tcell.Color
+	InitialDelayMax int
+}
+
 type KittyConfig struct {
-	SnakeCount      int
-	SnakeConfig     SnakeConfig
-	SwayStringCount int
+	SnakeCount       int
+	SnakeConfig      SnakeConfig
+	SwayStringCount  int
 	SwayStringConfig SwayStringConfig
-	ButterflyCount  int
-	ButterflyConfig ButterflyConfig
-	LaserCount      int
-	LaserConfig     LaserConfig
+	ButterflyCount   int
+	ButterflyConfig  ButterflyConfig
+	LaserCount       int
+	LaserConfig      LaserConfig
+	SpiderCount      int
+	SpiderConfig     SpiderConfig
 }
 
 func DefaultSnakeConfig() SnakeConfig {
@@ -67,6 +74,13 @@ func DefaultLaserConfig() LaserConfig {
 	}
 }
 
+func DefaultSpiderConfig() SpiderConfig {
+	return SpiderConfig{
+		Color:           tcell.ColorDefault,
+		InitialDelayMax: 60,
+	}
+}
+
 func DefaultKittyConfig() KittyConfig {
 	return KittyConfig{
 		SnakeCount:       2,
@@ -77,5 +91,7 @@ func DefaultKittyConfig() KittyConfig {
 		ButterflyConfig:  DefaultButterflyConfig(),
 		LaserCount:       1,
 		LaserConfig:      DefaultLaserConfig(),
+		SpiderCount:      1,
+		SpiderConfig:     DefaultSpiderConfig(),
 	}
 }

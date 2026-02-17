@@ -18,6 +18,7 @@ Examples:
 - `go run . --strings 1 --string-min-len 12 --string-max-len 28`
 - `go run . --butterflies 2 --butterfly-initial-delay-max 120`
 - `go run . --lasers 2 --laser-initial-delay-max 60`
+- `go run . --spiders 3 --spider-initial-delay-max 90`
 
 Flags:
 - `--snakes` (default: 2)
@@ -31,6 +32,8 @@ Flags:
 - `--butterfly-initial-delay-max` (default: 80)
 - `--lasers` (default: 1)
 - `--laser-initial-delay-max` (default: 80)
+- `--spiders` (default: 1)
+- `--spider-initial-delay-max` (default: 60)
 
 ## Disclaimer
 Not responsible for unexpected pounces, keyboard naps, or the sudden disappearance of your cursor.
