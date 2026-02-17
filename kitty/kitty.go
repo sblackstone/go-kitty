@@ -51,8 +51,12 @@ func (k *Kitty) EventLoop(ctx context.Context, cancel context.CancelFunc) {
 func (k *Kitty) Play(ctx context.Context) {
 	//k.objects = append(k.objects, &BouncySquare{X1: 0, Len: 2, Vx: 1, Vy: 1})
 	k.objects = append(k.objects, &Snake{MaxLen: 10})
+	k.objects = append(k.objects, &Snake{MaxLen: 10})
 	k.objects = append(k.objects, &SwayString{MinLen: 18, MaxLen: 36})
-	k.objects = append(k.objects, &BouncyBall{})
+	k.objects = append(k.objects, &SwayString{MinLen: 18, MaxLen: 36})
+	k.objects = append(k.objects, &Butterfly{})
+	k.objects = append(k.objects, &Butterfly{})
+
 
 	for {
 		select {

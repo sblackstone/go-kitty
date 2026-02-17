@@ -27,6 +27,8 @@ type Snake struct {
 	zoomOffX float64
 	zoomOffY float64
 	respawnWait int
+	spawnDelay  int
+	initDelaySet bool
 
 	posX            float64
 	posY            float64
@@ -63,11 +65,23 @@ func (s *Snake) Update(screen tcell.Screen) {
 	if s.MaxLen <= 0 {
 		s.MaxLen = 10
 	}
+	if s.spawnDelay > 0 {
+		s.spawnDelay--
+		return
+	}
 	if s.respawnWait > 0 {
 		s.respawnWait--
 		return
 	}
 	if !s.initialized {
+		if !s.initDelaySet {
+			s.spawnDelay = rand.Intn(40)
+			s.initDelaySet = true
+		}
+		if s.spawnDelay > 0 {
+			s.spawnDelay--
+			return
+		}
 		s.initSnake(screen)
 	}
 

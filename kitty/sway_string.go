@@ -15,6 +15,8 @@ type SwayString struct {
 	Color  tcell.Color
 
 	respawnWait int
+	spawnDelay  int
+	initDelaySet bool
 	step        int
 	lifeSteps   int
 	length      int
@@ -40,6 +42,14 @@ func (s *SwayString) Update(screen tcell.Screen) {
 		return
 	}
 	if s.lifeSteps == 0 {
+		if !s.initDelaySet {
+			s.spawnDelay = rand.Intn(40)
+			s.initDelaySet = true
+		}
+		if s.spawnDelay > 0 {
+			s.spawnDelay--
+			return
+		}
 		s.initString(screen)
 		return
 	}

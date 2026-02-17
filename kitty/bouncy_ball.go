@@ -12,14 +12,21 @@ import (
 type BouncyBall struct {
 	active      bool
 	respawnWait int
+	initDelaySet bool
 
-	x      float64
-	y      float64
-	vx     float64
-	vy     float64
-	gravity float64
-	radius  int
-	dir     int
+	x           float64
+	y           float64
+	vx          float64
+	vy          float64
+	gravity     float64
+	radius      int
+	dir         int
+	targetVx    float64
+	pauseTicks  int
+	dartTicks   int
+	twitchTicks int
+	wigglePhase float64
+	wiggleAmp   float64
 }
 
 var bouncyBallSeeded bool
@@ -30,6 +37,10 @@ func (s *BouncyBall) Update(screen tcell.Screen) {
 	}
 	if s.gravity == 0 {
 		s.gravity = 0.35
+	}
+	if !s.active && !s.initDelaySet {
+		s.respawnWait = rand.Intn(60)
+		s.initDelaySet = true
 	}
 	if s.respawnWait > 0 {
 		s.respawnWait--
@@ -43,6 +54,37 @@ func (s *BouncyBall) Update(screen tcell.Screen) {
 	width, height := screen.Size()
 	ground := float64(height - 1)
 
+	// occasional pause or dart for prey-like movement
+	if s.pauseTicks > 0 {
+		s.pauseTicks--
+		s.targetVx = 0.1 * float64(s.dir)
+	} else if s.dartTicks > 0 {
+		s.dartTicks--
+		s.targetVx = randRange(4.0, 6.0) * float64(s.dir)
+		if s.dartTicks == 0 {
+			s.targetVx = randRange(1.2, 3.0) * float64(s.dir)
+		}
+	} else {
+		// subtle speed drift
+		s.targetVx += (rand.Float64() - 0.5) * 0.08
+		s.targetVx = clampFloat(s.targetVx, 0.8, 3.4) * float64(s.dir)
+		if rand.Float64() < 0.015 {
+			s.pauseTicks = 6 + rand.Intn(12)
+		}
+		if rand.Float64() < 0.02 {
+			s.dartTicks = 8 + rand.Intn(14)
+		}
+	}
+
+	if s.twitchTicks > 0 {
+		s.twitchTicks--
+		s.targetVx *= 1.15
+	} else if rand.Float64() < 0.01 {
+		s.twitchTicks = 6 + rand.Intn(10)
+	}
+
+	s.vx += (s.targetVx - s.vx) * 0.12
+
 	s.vy += s.gravity
 	s.x += s.vx
 	s.y += s.vy
@@ -52,6 +94,9 @@ func (s *BouncyBall) Update(screen tcell.Screen) {
 		s.vy = -s.vy * 0.7
 		if math.Abs(s.vy) < 0.6 {
 			s.vy = -randRange(2.5, 4.0)
+		}
+		if rand.Float64() < 0.05 {
+			s.vy = -randRange(2.0, 3.2)
 		}
 	}
 
@@ -73,7 +118,12 @@ func (s *BouncyBall) Draw(screen tcell.Screen) {
 	}
 	width, height := screen.Size()
 	centerX := int(math.Round(s.x))
+	s.wigglePhase += 0.35
+	if rand.Float64() < 0.02 {
+		s.wiggleAmp = randRange(0.0, 0.8)
+	}
 	centerY := int(math.Round(s.y))
+	centerX += int(math.Round(math.Sin(s.wigglePhase) * s.wiggleAmp))
 
 	fg := color.White
 	r := float64(s.radius)
@@ -111,6 +161,7 @@ func (s *BouncyBall) initBall(screen tcell.Screen) {
 	}
 	// cross the screen in a few bounces
 	s.vx = randRange(1.8, 3.2) * float64(s.dir)
+	s.targetVx = s.vx
 	s.vy = -randRange(3.0, 5.0)
 	ground := float64(height - 1)
 	s.y = ground - float64(s.radius)
@@ -119,4 +170,9 @@ func (s *BouncyBall) initBall(screen tcell.Screen) {
 	} else {
 		s.x = float64(width + s.radius)
 	}
+	s.pauseTicks = 0
+	s.dartTicks = 0
+	s.twitchTicks = 0
+	s.wigglePhase = randRange(0, math.Pi*2)
+	s.wiggleAmp = randRange(0.2, 0.6)
 }
