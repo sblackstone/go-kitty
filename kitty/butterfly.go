@@ -15,6 +15,7 @@ type Butterfly struct {
 	active       bool
 	respawnWait  int
 	initDelaySet bool
+	initialDelayMax int
 
 	x         float64
 	baseY     float64
@@ -40,7 +41,11 @@ func (b *Butterfly) Update(screen tcell.Screen) {
 		butterflyRandSeeded = true
 	}
 	if !b.active && !b.initDelaySet {
-		b.respawnWait = rand.Intn(80)
+		maxDelay := b.initialDelayMax
+		if maxDelay <= 0 {
+			maxDelay = 80
+		}
+		b.respawnWait = rand.Intn(maxDelay + 1)
 		b.initDelaySet = true
 	}
 	if b.respawnWait > 0 {
@@ -173,5 +178,15 @@ func randomButterflyColor() tcell.Color {
 		color.White,
 	}
 	return colors[rand.Intn(len(colors))]
+}
+
+func NewButterfly(cfg ButterflyConfig) *Butterfly {
+	if cfg.InitialDelayMax <= 0 {
+		cfg.InitialDelayMax = 80
+	}
+	return &Butterfly{
+		Color:           cfg.Color,
+		initialDelayMax: cfg.InitialDelayMax,
+	}
 }
 

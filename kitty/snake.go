@@ -29,6 +29,7 @@ type Snake struct {
 	respawnWait int
 	spawnDelay  int
 	initDelaySet bool
+	initialDelayMax int
 
 	posX            float64
 	posY            float64
@@ -75,7 +76,12 @@ func (s *Snake) Update(screen tcell.Screen) {
 	}
 	if !s.initialized {
 		if !s.initDelaySet {
-			s.spawnDelay = rand.Intn(40)
+			ensureSnakeSeeded()
+			maxDelay := s.initialDelayMax
+			if maxDelay <= 0 {
+				maxDelay = 40
+			}
+			s.spawnDelay = rand.Intn(maxDelay + 1)
 			s.initDelaySet = true
 		}
 		if s.spawnDelay > 0 {
@@ -119,10 +125,7 @@ func (s *Snake) initSnake(screen tcell.Screen) {
 	if width <= 0 || height <= 0 {
 		return
 	}
-	if !snakeRandSeeded {
-		rand.Seed(time.Now().UnixNano())
-		snakeRandSeeded = true
-	}
+	ensureSnakeSeeded()
 
 	side := rand.Intn(4)
 	maxAmp := 6
@@ -171,6 +174,20 @@ func (s *Snake) initSnake(screen tcell.Screen) {
 
 	s.turnTarget = s.heading
 	s.turnSpeed = randRange(0.03, 0.12)
+}
+
+func NewSnake(cfg SnakeConfig) *Snake {
+	if cfg.MaxLen <= 0 {
+		cfg.MaxLen = 10
+	}
+	if cfg.InitialDelayMax <= 0 {
+		cfg.InitialDelayMax = 40
+	}
+	return &Snake{
+		MaxLen:          cfg.MaxLen,
+		Color:           cfg.Color,
+		initialDelayMax: cfg.InitialDelayMax,
+	}
 }
 
 func (s *Snake) updateSpeed() {
@@ -333,4 +350,11 @@ func randomEdgePoint(width, height int) (float64, float64) {
 	}
 	// bottom
 	return randRange(0, float64(width-1)), float64(height)
+}
+
+func ensureSnakeSeeded() {
+	if !snakeRandSeeded {
+		rand.Seed(time.Now().UnixNano())
+		snakeRandSeeded = true
+	}
 }

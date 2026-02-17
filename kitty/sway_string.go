@@ -17,6 +17,7 @@ type SwayString struct {
 	respawnWait int
 	spawnDelay  int
 	initDelaySet bool
+	initialDelayMax int
 	step        int
 	lifeSteps   int
 	length      int
@@ -43,7 +44,12 @@ func (s *SwayString) Update(screen tcell.Screen) {
 	}
 	if s.lifeSteps == 0 {
 		if !s.initDelaySet {
-			s.spawnDelay = rand.Intn(40)
+			ensureSwaySeeded()
+			maxDelay := s.initialDelayMax
+			if maxDelay <= 0 {
+				maxDelay = 40
+			}
+			s.spawnDelay = rand.Intn(maxDelay + 1)
 			s.initDelaySet = true
 		}
 		if s.spawnDelay > 0 {
@@ -118,10 +124,7 @@ func (s *SwayString) initString(screen tcell.Screen) {
 	if width <= 0 || height <= 0 {
 		return
 	}
-	if !swayRandSeeded {
-		rand.Seed(time.Now().UnixNano())
-		swayRandSeeded = true
-	}
+	ensureSwaySeeded()
 
 	minLen := s.MinLen
 	maxLen := s.MaxLen
@@ -172,6 +175,24 @@ func (s *SwayString) initString(screen tcell.Screen) {
 	s.perpY = s.dirX
 }
 
+func NewSwayString(cfg SwayStringConfig) *SwayString {
+	if cfg.MinLen <= 0 {
+		cfg.MinLen = 18
+	}
+	if cfg.MaxLen < cfg.MinLen {
+		cfg.MaxLen = cfg.MinLen + 6
+	}
+	if cfg.InitialDelayMax <= 0 {
+		cfg.InitialDelayMax = 40
+	}
+	return &SwayString{
+		MinLen:          cfg.MinLen,
+		MaxLen:          cfg.MaxLen,
+		Color:           cfg.Color,
+		initialDelayMax: cfg.InitialDelayMax,
+	}
+}
+
 func randomStringColor() tcell.Color {
 	colors := []tcell.Color{
 		color.Red,
@@ -189,4 +210,11 @@ func randomStringColor() tcell.Color {
 		color.White,
 	}
 	return colors[rand.Intn(len(colors))]
+}
+
+func ensureSwaySeeded() {
+	if !swayRandSeeded {
+		rand.Seed(time.Now().UnixNano())
+		swayRandSeeded = true
+	}
 }
