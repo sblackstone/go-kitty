@@ -129,34 +129,35 @@ func (b *Butterfly) Draw(screen tcell.Screen) {
 		b.Color = fg
 	}
 
-	up := math.Sin(b.flapPhase+b.turnBias) > 0
-	topLeft := '/'
-	topRight := '\\'
-	bottomLeft := '\\'
-	bottomRight := '/'
-	if !up {
-		topLeft = '\\'
-		topRight = '/'
-		bottomLeft = '/'
-		bottomRight = '\\'
-	}
-
 	bright := color.White
 	if fg == color.White {
 		bright = color.Aqua
 	}
 
-	// upper wings (longer)
-	b.drawCell(screen, cx-1, cy-2, topLeft, bright, width, height)
-	b.drawCell(screen, cx, cy-2, topRight, bright, width, height)
-	b.drawCell(screen, cx-1, cy-1, topLeft, fg, width, height)
-	b.drawCell(screen, cx, cy-1, topRight, fg, width, height)
+	open := math.Sin(b.flapPhase+b.turnBias) > 0
+	if open {
+		// open wings
+		b.drawCell(screen, cx-1, cy-1, '\\', fg, width, height)
+		b.drawCell(screen, cx+1, cy-1, '/', fg, width, height)
+		b.drawCell(screen, cx-1, cy+1, '/', fg, width, height)
+		b.drawCell(screen, cx+1, cy+1, '\\', fg, width, height)
 
-	// lower wings (longer)
-	b.drawCell(screen, cx-1, cy+1, bottomLeft, fg, width, height)
-	b.drawCell(screen, cx, cy+1, bottomRight, fg, width, height)
-	b.drawCell(screen, cx-1, cy+2, bottomLeft, bright, width, height)
-	b.drawCell(screen, cx, cy+2, bottomRight, bright, width, height)
+		b.drawCell(screen, cx-2, cy-2, '\\', bright, width, height)
+		b.drawCell(screen, cx+2, cy-2, '/', bright, width, height)
+		b.drawCell(screen, cx-2, cy+2, '/', bright, width, height)
+		b.drawCell(screen, cx+2, cy+2, '\\', bright, width, height)
+	} else {
+		// closed wings
+		b.drawCell(screen, cx-1, cy-1, '/', fg, width, height)
+		b.drawCell(screen, cx+1, cy-1, '\\', fg, width, height)
+		b.drawCell(screen, cx-1, cy+1, '\\', fg, width, height)
+		b.drawCell(screen, cx+1, cy+1, '/', fg, width, height)
+
+		b.drawCell(screen, cx-2, cy-2, '/', bright, width, height)
+		b.drawCell(screen, cx+2, cy-2, '\\', bright, width, height)
+		b.drawCell(screen, cx-2, cy+2, '\\', bright, width, height)
+		b.drawCell(screen, cx+2, cy+2, '/', bright, width, height)
+	}
 }
 
 func (b *Butterfly) Hit(x, y int) {
