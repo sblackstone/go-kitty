@@ -27,25 +27,33 @@ type Kitty struct {
 	objects      []KittyPlayThing
 }
 
-func (k *Kitty) EventLoop(ctx context.Context) {
+func (k *Kitty) EventLoop(ctx context.Context, cancel context.CancelFunc) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case ev := <-k.s.EventQ():
-			switch ev := ev.(type) {
-			case *tcell.EventKey:
-				if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
-					return
-				}
+		default:
+		}
+
+		ev := <- k.s.EventQ()
+		switch ev := ev.(type) {
+		case *tcell.EventKey:
+			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
+				cancel()
+				return
 			}
+		case *tcell.EventInterrupt:
+			return
 		}
 	}
 }
 
 func (k *Kitty) Play(ctx context.Context) {
 	//k.objects = append(k.objects, &BouncySquare{X1: 0, Len: 2, Vx: 1, Vy: 1})
+	k.objects = append(k.objects, &Snake{MaxLen: 6})
 	k.objects = append(k.objects, &Snake{MaxLen: 10})
+	k.objects = append(k.objects, &Snake{MaxLen: 20})
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -59,14 +67,16 @@ func (k *Kitty) Play(ctx context.Context) {
 				o.Draw(k.s)
 			}
 			k.s.Show()
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(35 * time.Millisecond)
 		}
 
 	}
 }
 
 func (k *Kitty) Start(ctx context.Context) {
-	go k.EventLoop(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	defer k.s.Fini()
+	go k.EventLoop(ctx, cancel)
 	k.Play(ctx)
 }
 

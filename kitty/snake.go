@@ -11,6 +11,7 @@ import (
 
 type Snake struct {
 	MaxLen int
+	Color  tcell.Color
 
 	body        []Point
 	curLen      int
@@ -21,6 +22,7 @@ type Snake struct {
 	speed       float64
 	speedTarget float64
 	zoomTicks   int
+	respawnWait int
 
 	posX            float64
 	posY            float64
@@ -35,17 +37,31 @@ var snakeRandSeeded bool
 
 func (s *Snake) Draw(screen tcell.Screen) {
 	width, height := screen.Size()
+	fg := s.Color
+	if fg == tcell.ColorDefault || fg == 0 {
+		fg = color.Green
+	}
 	for _, p := range s.body {
-		if p.X < 0 || p.Y < 0 || p.X >= width || p.Y >= height {
-			continue
+		for dx := -1; dx <= 1; dx++ {
+			for dy := -1; dy <= 1; dy++ {
+				x := p.X + dx
+				y := p.Y + dy
+				if x < 0 || y < 0 || x >= width || y >= height {
+					continue
+				}
+				screen.SetContent(x, y, tcell.RuneHLine, nil, tcell.StyleDefault.Foreground(fg))
+			}
 		}
-		screen.SetContent(p.X, p.Y, tcell.RuneHLine, nil, tcell.StyleDefault.Foreground(color.Green))
 	}
 }
 
 func (s *Snake) Update(screen tcell.Screen) {
 	if s.MaxLen <= 0 {
 		s.MaxLen = 10
+	}
+	if s.respawnWait > 0 {
+		s.respawnWait--
+		return
 	}
 	if !s.initialized {
 		s.initSnake(screen)
@@ -74,7 +90,9 @@ func (s *Snake) Update(screen tcell.Screen) {
 	}
 
 	if s.shouldReset(width, height) {
-		s.initSnake(screen)
+		s.respawnWait = 20 + rand.Intn(40)
+		s.initialized = false
+		s.body = s.body[:0]
 	}
 }
 
@@ -106,8 +124,12 @@ func (s *Snake) initSnake(screen tcell.Screen) {
 	s.speed = 1.0
 	s.speedTarget = 1.0
 	s.zoomTicks = 0
+	s.respawnWait = 0
 	s.body = s.body[:0]
 	s.initialized = true
+	if s.Color == tcell.ColorDefault || s.Color == 0 {
+		s.Color = randomSnakeColor()
+	}
 
 	if side == 0 { // left -> right
 		s.posX = -1
@@ -218,6 +240,24 @@ func clampFloat(v, minV, maxV float64) float64 {
 
 func randRange(minV, maxV float64) float64 {
 	return minV + rand.Float64()*(maxV-minV)
+}
+
+func randomSnakeColor() tcell.Color {
+	colors := []tcell.Color{
+		color.Red,
+		color.Orange,
+		color.Yellow,
+		color.Green,
+		color.Teal,
+		color.Aqua,
+		color.Blue,
+		color.Navy,
+		color.Purple,
+		color.Fuchsia,
+		color.Maroon,
+		color.Lime,
+	}
+	return colors[rand.Intn(len(colors))]
 }
 
 func normalizeAngle(a float64) float64 {
