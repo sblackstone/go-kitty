@@ -2,6 +2,7 @@ package kitty
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/gdamore/tcell/v3"
@@ -95,6 +96,7 @@ func (k *Kitty) Play(ctx context.Context) {
 				o.Update(k.s)
 			}
 			k.handleLaserHits()
+			k.handleWebCollisions()
 			for _, o := range k.objects {
 				o.Draw(k.s)
 			}
@@ -167,19 +169,90 @@ func (k *Kitty) handleLaserHits() {
 			}
 		}
 	}
-	for _, o := range k.objects {
-		s, ok := o.(*Spider)
+	if k.config.LaserHitsSpiders {
+		for _, o := range k.objects {
+			s, ok := o.(*Spider)
+			if !ok {
+				continue
+			}
+			sx, sy, ok := s.HitPoint(width, height)
+			if !ok {
+				continue
+			}
+			for _, p := range lasers {
+				if absInt(p.X-sx) <= 1 && absInt(p.Y-sy) <= 1 {
+					s.Hit(sx, sy)
+					break
+				}
+			}
+		}
+	}
+}
+
+func (k *Kitty) handleWebCollisions() {
+	width, height := k.s.Size()
+	
+	// Check if butterflies hit webs and notify spiders
+	for _, spiderObj := range k.objects {
+		spider, ok := spiderObj.(*Spider)
 		if !ok {
 			continue
 		}
-		sx, sy, ok := s.HitPoint(width, height)
-		if !ok {
+		
+		if spider.IsHunting() {
+			// Spider is already hunting, check if it's eating
+			for _, butterflyObj := range k.objects {
+				butterfly, ok := butterflyObj.(*Butterfly)
+				if !ok || !butterfly.IsStuckInWeb() {
+					continue
+				}
+				
+				bx, by, ok := butterfly.HitPoint(width, height)
+				if !ok {
+					continue
+				}
+				
+				spiderX := int(math.Round(spider.x))
+				spiderY := int(math.Round(spider.y))
+				
+				// If spider is close enough, eat the butterfly
+				if absInt(spiderX-bx) <= 1 && absInt(spiderY-by) <= 1 {
+					butterfly.BeEaten()
+					break
+				}
+			}
 			continue
 		}
-		for _, p := range lasers {
-			if absInt(p.X-sx) <= 1 && absInt(p.Y-sy) <= 1 {
-				s.Hit(sx, sy)
-				break
+		
+		webPoints := spider.GetWebPoints()
+		if len(webPoints) == 0 {
+			continue
+		}
+		
+		// Check if butterflies hit this spider's web
+		for _, butterflyObj := range k.objects {
+			butterfly, ok := butterflyObj.(*Butterfly)
+			if !ok {
+				continue
+			}
+			
+			if butterfly.IsStuckInWeb() {
+				continue
+			}
+			
+			bx, by, ok := butterfly.HitPoint(width, height)
+			if !ok {
+				continue
+			}
+			
+			// Check collision with web points
+			for _, p := range webPoints {
+				if absInt(p.X-bx) <= 1 && absInt(p.Y-by) <= 1 {
+					butterfly.StickToWeb()
+					// Notify spider to hunt
+					spider.HuntPrey(float64(bx), float64(by))
+					break
+				}
 			}
 		}
 	}

@@ -16,6 +16,8 @@ type Butterfly struct {
 	respawnWait  int
 	initDelaySet bool
 	initialDelayMax int
+	stuckInWeb   bool
+	stuckTicks   int
 
 	x         float64
 	baseY     float64
@@ -61,6 +63,18 @@ func (b *Butterfly) Update(screen tcell.Screen) {
 	}
 	if !b.active {
 		b.initButterfly(width, height)
+		return
+	}
+
+	// Check if stuck in web
+	if b.stuckInWeb {
+		b.stuckTicks--
+		if b.stuckTicks <= 0 {
+			// Escape after struggling
+			b.stuckInWeb = false
+		}
+		// Still flap wings while stuck
+		b.flapPhase += 1.2 + rand.Float64()*0.5
 		return
 	}
 
@@ -238,6 +252,8 @@ func (b *Butterfly) initButterfly(width, height int) {
 	b.burstTicks = 0
 	b.turnBias = randRange(-1.0, 1.0)
 	b.Color = randomButterflyColor()
+	b.stuckInWeb = false
+	b.stuckTicks = 0
 }
 
 func randomButterflyColor() tcell.Color {
@@ -251,6 +267,21 @@ func randomButterflyColor() tcell.Color {
 		color.White,
 	}
 	return colors[rand.Intn(len(colors))]
+}
+
+func (b *Butterfly) StickToWeb() {
+	b.stuckInWeb = true
+	b.stuckTicks = 60 + rand.Intn(80) // Stuck for 60-140 ticks
+}
+
+func (b *Butterfly) IsStuckInWeb() bool {
+	return b.stuckInWeb
+}
+
+func (b *Butterfly) BeEaten() {
+	b.active = false
+	b.stuckInWeb = false
+	b.respawnWait = 80 + rand.Intn(120)
 }
 
 func NewButterfly(cfg ButterflyConfig) *Butterfly {

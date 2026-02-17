@@ -31,12 +31,19 @@ type Spider struct {
 	// Web building
 	webSegments    []Point
 	webSpokes      []Point
-	webState       string // "dropping", "building", "done"
+	dropSilk       []Point
+	webState       string // "dropping", "building", "done", "hunting", "eating", "climbing"
 	webBuildStep   int
 	dropStartY     float64
 	dropTargetY    float64
 	centerX        float64
 	centerY        float64
+	
+	// Hunting
+	preyX          float64
+	preyY          float64
+	eatingTicks    int
+	webIncomplete  bool
 }
 
 var spiderRandSeeded bool
@@ -78,8 +85,8 @@ func (s *Spider) Update(screen tcell.Screen) {
 		s.y += 0.8
 		// Add silk thread
 		webPoint := Point{X: int(math.Round(s.x)), Y: int(math.Round(s.y))}
-		if len(s.webSegments) == 0 || s.webSegments[len(s.webSegments)-1] != webPoint {
-			s.webSegments = append(s.webSegments, webPoint)
+		if len(s.dropSilk) == 0 || s.dropSilk[len(s.dropSilk)-1] != webPoint {
+			s.dropSilk = append(s.dropSilk, webPoint)
 		}
 		if s.y >= s.dropTargetY {
 			s.webState = "building"
@@ -99,9 +106,69 @@ func (s *Spider) Update(screen tcell.Screen) {
 		if s.pauseTicks > 0 {
 			s.pauseTicks--
 		} else {
-			// After resting, disappear and respawn
+			// After resting, climb back up
+			s.webState = "climbing"
+			s.x = s.centerX
+			s.y = s.centerY
+		}
+		return
+	
+	case "hunting":
+		// Move towards prey
+		dx := s.preyX - s.x
+		dy := s.preyY - s.y
+		dist := math.Hypot(dx, dy)
+		if dist < 1.0 {
+			// Reached prey, start eating
+			s.webState = "eating"
+			s.eatingTicks = 20
+		} else {
+			// Move quickly towards prey
+			speed := 1.5
+			s.x += (dx / dist) * speed
+			s.y += (dy / dist) * speed
+		}
+		return
+	
+	case "eating":
+		// Eating animation
+		if s.eatingTicks > 0 {
+			s.eatingTicks--
+		} else {
+			// Return to center or resume building
+			if s.webIncomplete {
+				// Resume building web
+				s.webState = "building"
+				s.webIncomplete = false
+			} else {
+				// Return to center
+				dx := s.centerX - s.x
+				dy := s.centerY - s.y
+				dist := math.Hypot(dx, dy)
+				if dist < 1.0 {
+					s.x = s.centerX
+					s.y = s.centerY
+					s.webState = "done"
+					s.pauseTicks = 100 + rand.Intn(100)
+				} else {
+					speed := 1.0
+					s.x += (dx / dist) * speed
+					s.y += (dy / dist) * speed
+				}
+			}
+		}
+		return
+	
+	case "climbing":
+		// Climb back up to top
+		s.y -= 0.8
+		if s.y <= 0 {
+			// Reached top, despawn and clear web
 			s.active = false
-			s.respawnWait = 80 + rand.Intn(120)
+			s.respawnWait = 200 + rand.Intn(300)
+			s.webSegments = []Point{}
+			s.webSpokes = []Point{}
+			s.dropSilk = []Point{}
 		}
 		return
 	}
@@ -164,7 +231,7 @@ func (s *Spider) buildClassicWeb(width, height int) {
 		s.x = s.centerX
 		s.y = s.centerY
 		s.webState = "done"
-		s.pauseTicks = 100 + rand.Intn(100)
+		s.pauseTicks = 300 + rand.Intn(200)
 	}
 }
 
@@ -173,13 +240,17 @@ func (s *Spider) Draw(screen tcell.Screen) {
 		s.drawExplosion(screen)
 		return
 	}
-	if !s.active {
-		return
-	}
 	width, height := screen.Size()
 	
-	// Draw web spokes first (radial lines)
+	// Draw drop silk (not collidable) - same color as spokes
 	spokeColor := tcell.ColorDarkGray
+	for _, p := range s.dropSilk {
+		if p.X >= 0 && p.Y >= 0 && p.X < width && p.Y < height {
+			screen.SetContent(p.X, p.Y, '|', nil, tcell.StyleDefault.Foreground(spokeColor))
+		}
+	}
+	
+	// Draw web spokes first (radial lines)
 	for _, p := range s.webSpokes {
 		if p.X >= 0 && p.Y >= 0 && p.X < width && p.Y < height {
 			screen.SetContent(p.X, p.Y, '|', nil, tcell.StyleDefault.Foreground(spokeColor))
@@ -192,6 +263,10 @@ func (s *Spider) Draw(screen tcell.Screen) {
 		if p.X >= 0 && p.Y >= 0 && p.X < width && p.Y < height {
 			screen.SetContent(p.X, p.Y, '-', nil, tcell.StyleDefault.Foreground(webColor))
 		}
+	}
+	
+	if !s.active {
+		return
 	}
 	
 	cx := int(math.Round(s.x))
@@ -227,6 +302,7 @@ func (s *Spider) Hit(x, y int) {
 	s.respawnWait = 40 + rand.Intn(80)
 	s.webSegments = []Point{}
 	s.webSpokes = []Point{}
+	s.dropSilk = []Point{}
 }
 
 func (s *Spider) HitPoint(width, height int) (int, int, bool) {
@@ -239,6 +315,31 @@ func (s *Spider) HitPoint(width, height int) (int, int, bool) {
 		return 0, 0, false
 	}
 	return cx, cy, true
+}
+
+func (s *Spider) GetWebPoints() []Point {
+	points := make([]Point, 0, len(s.webSegments)+len(s.webSpokes))
+	points = append(points, s.webSegments...)
+	points = append(points, s.webSpokes...)
+	return points
+}
+
+func (s *Spider) HuntPrey(x, y float64) {
+	if s.webState == "done" || s.webState == "building" {
+		s.preyX = x
+		s.preyY = y
+		// Remember if web was still being built
+		s.webIncomplete = (s.webState == "building")
+		s.webState = "hunting"
+	}
+}
+
+func (s *Spider) IsHunting() bool {
+	return s.webState == "hunting" || s.webState == "eating"
+}
+
+func (s *Spider) GetCenterPoint() (float64, float64) {
+	return s.centerX, s.centerY
 }
 
 func (s *Spider) drawCell(screen tcell.Screen, x, y int, r rune, fg tcell.Color, width, height int) {
@@ -288,7 +389,9 @@ func (s *Spider) initSpider(width, height int) {
 	}
 	s.webSegments = []Point{}
 	s.webSpokes = []Point{}
+	s.dropSilk = []Point{}
 	s.webBuildStep = 0
+	s.webIncomplete = false
 }
 
 func NewSpider(cfg SpiderConfig) *Spider {
@@ -303,11 +406,11 @@ func NewSpider(cfg SpiderConfig) *Spider {
 
 func randomSpiderColor() tcell.Color {
 	colors := []tcell.Color{
-		color.Black,
 		color.Gray,
 		color.DarkGray,
 		color.Maroon,
 		color.Brown,
+		color.DarkRed,
 	}
 	return colors[rand.Intn(len(colors))]
 }

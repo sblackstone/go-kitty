@@ -24,6 +24,7 @@ var (
 	laserInitialDelayMax int
 	spiderCount         int
 	spiderInitialDelayMax int
+	laserHitsSpiders    bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -46,6 +47,7 @@ var rootCmd = &cobra.Command{
 		cfg.LaserConfig.InitialDelayMax = laserInitialDelayMax
 		cfg.SpiderCount = spiderCount
 		cfg.SpiderConfig.InitialDelayMax = spiderInitialDelayMax
+		cfg.LaserHitsSpiders = laserHitsSpiders
 
 		k, err := kitty.New(cfg)
 		if err != nil {
@@ -87,4 +89,5 @@ func init() {
 	rootCmd.Flags().IntVar(&laserInitialDelayMax, "laser-initial-delay-max", defaults.LaserConfig.InitialDelayMax, "Max initial delay (ticks) for lasers")
 	rootCmd.Flags().IntVar(&spiderCount, "spiders", defaults.SpiderCount, "Number of spiders")
 	rootCmd.Flags().IntVar(&spiderInitialDelayMax, "spider-initial-delay-max", defaults.SpiderConfig.InitialDelayMax, "Max initial delay (ticks) for spiders")
+	rootCmd.Flags().BoolVar(&laserHitsSpiders, "laser-hits-spiders", defaults.LaserHitsSpiders, "Allow lasers to destroy spiders")
 }

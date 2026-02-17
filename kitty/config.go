@@ -41,6 +41,7 @@ type KittyConfig struct {
 	LaserConfig      LaserConfig
 	SpiderCount      int
 	SpiderConfig     SpiderConfig
+	LaserHitsSpiders bool
 }
 
 func DefaultSnakeConfig() SnakeConfig {
@@ -93,5 +94,6 @@ func DefaultKittyConfig() KittyConfig {
 		LaserConfig:      DefaultLaserConfig(),
 		SpiderCount:      1,
 		SpiderConfig:     DefaultSpiderConfig(),
+		LaserHitsSpiders: false,
 	}
 }
