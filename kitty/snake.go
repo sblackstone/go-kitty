@@ -22,6 +22,10 @@ type Snake struct {
 	speed       float64
 	speedTarget float64
 	zoomTicks   int
+	zoomOffTicks int
+	zoomOffTargetSet bool
+	zoomOffX float64
+	zoomOffY float64
 	respawnWait int
 
 	posX            float64
@@ -49,7 +53,7 @@ func (s *Snake) Draw(screen tcell.Screen) {
 				if x < 0 || y < 0 || x >= width || y >= height {
 					continue
 				}
-				screen.SetContent(x, y, tcell.RuneHLine, nil, tcell.StyleDefault.Foreground(fg))
+				screen.SetContent(x, y, tcell.RuneBlock, nil, tcell.StyleDefault.Foreground(fg))
 			}
 		}
 	}
@@ -124,6 +128,8 @@ func (s *Snake) initSnake(screen tcell.Screen) {
 	s.speed = 1.0
 	s.speedTarget = 1.0
 	s.zoomTicks = 0
+	s.zoomOffTicks = 0
+	s.zoomOffTargetSet = false
 	s.respawnWait = 0
 	s.body = s.body[:0]
 	s.initialized = true
@@ -154,7 +160,10 @@ func (s *Snake) initSnake(screen tcell.Screen) {
 }
 
 func (s *Snake) updateSpeed() {
-	if s.zoomTicks > 0 {
+	if s.zoomOffTicks > 0 {
+		s.zoomOffTicks--
+		s.speedTarget = randRange(6.0, 9.0)
+	} else if s.zoomTicks > 0 {
 		s.zoomTicks--
 	} else {
 		// small random drift while in normal mode
@@ -165,12 +174,36 @@ func (s *Snake) updateSpeed() {
 			s.speedTarget = randRange(2.5, 5.0)
 			s.zoomTicks = 10 + rand.Intn(20)
 		}
+		// rare zoom-off to exit
+		if rand.Float64() < 0.006 {
+			s.zoomOffTicks = 20 + rand.Intn(30)
+			s.zoomOffTargetSet = false
+		}
 	}
 	// smooth change toward target
 	s.speed += (s.speedTarget - s.speed) * 0.1
 }
 
 func (s *Snake) updateSteering(width, height int) {
+	if s.zoomOffTicks > 0 {
+		if !s.zoomOffTargetSet {
+			s.zoomOffX, s.zoomOffY = randomEdgePoint(width, height)
+			s.zoomOffTargetSet = true
+		}
+		angle := math.Atan2(s.zoomOffY-s.posY, s.zoomOffX-s.posX)
+		s.turnTarget = angle
+		s.turnSpeed = 0.25
+		s.amplitudeTarget = 1.0
+		// rotate heading toward target
+		delta := normalizeAngle(s.turnTarget - s.heading)
+		if delta > s.turnSpeed {
+			delta = s.turnSpeed
+		} else if delta < -s.turnSpeed {
+			delta = -s.turnSpeed
+		}
+		s.heading = normalizeAngle(s.heading + delta)
+		return
+	}
 	// drift target heading a bit for chaos
 	s.turnTarget += (rand.Float64()-0.5)*0.08 + math.Sin(s.phase)*0.01
 	// occasional bigger turn
