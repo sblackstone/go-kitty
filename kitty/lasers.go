@@ -116,6 +116,18 @@ func (l *LaserPointer) Draw(screen tcell.Screen) {
 	}
 }
 
+func (l *LaserPointer) Position(width, height int) (Point, bool) {
+	if !l.active {
+		return Point{}, false
+	}
+	cx := int(math.Round(l.x))
+	cy := int(math.Round(l.y))
+	if cx < 0 || cy < 0 || cx >= width || cy >= height {
+		return Point{}, false
+	}
+	return Point{X: cx, Y: cy}, true
+}
+
 func (l *LaserPointer) initLaser(width, height int) {
 	l.active = true
 	l.baseSpeed = randRange(1.0, 2.2)

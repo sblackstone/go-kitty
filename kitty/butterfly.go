@@ -27,6 +27,9 @@ type Butterfly struct {
 	flutterTicks int
 	burstTicks   int
 	turnBias     float64
+	explosionTicks int
+	explosionX    int
+	explosionY    int
 }
 
 var butterflyRandSeeded bool
@@ -34,6 +37,10 @@ var butterflyRandSeeded bool
 func (b *Butterfly) Update(screen tcell.Screen) {
 	width, height := screen.Size()
 	if width <= 0 || height <= 0 {
+		return
+	}
+	if b.explosionTicks > 0 {
+		b.explosionTicks--
 		return
 	}
 	if !butterflyRandSeeded {
@@ -100,6 +107,10 @@ func (b *Butterfly) Update(screen tcell.Screen) {
 }
 
 func (b *Butterfly) Draw(screen tcell.Screen) {
+	if b.explosionTicks > 0 {
+		b.drawExplosion(screen)
+		return
+	}
 	if !b.active {
 		return
 	}
@@ -119,18 +130,79 @@ func (b *Butterfly) Draw(screen tcell.Screen) {
 	}
 
 	up := math.Sin(b.flapPhase+b.turnBias) > 0
-	leftWing := '/'
-	rightWing := '\\'
+	topLeft := '/'
+	topRight := '\\'
+	bottomLeft := '\\'
+	bottomRight := '/'
 	if !up {
-		leftWing = '\\'
-		rightWing = '/'
+		topLeft = '\\'
+		topRight = '/'
+		bottomLeft = '/'
+		bottomRight = '\\'
 	}
 
-	b.drawCell(screen, cx-1, cy-1, leftWing, fg, width, height)
-	b.drawCell(screen, cx+1, cy-1, rightWing, fg, width, height)
-	b.drawCell(screen, cx, cy, tcell.RuneVLine, fg, width, height)
-	b.drawCell(screen, cx-1, cy+1, leftWing, fg, width, height)
-	b.drawCell(screen, cx+1, cy+1, rightWing, fg, width, height)
+	bright := color.White
+	if fg == color.White {
+		bright = color.Aqua
+	}
+
+	// upper wings (longer)
+	b.drawCell(screen, cx-1, cy-2, topLeft, bright, width, height)
+	b.drawCell(screen, cx, cy-2, topRight, bright, width, height)
+	b.drawCell(screen, cx-1, cy-1, topLeft, fg, width, height)
+	b.drawCell(screen, cx, cy-1, topRight, fg, width, height)
+
+	// lower wings (longer)
+	b.drawCell(screen, cx-1, cy+1, bottomLeft, fg, width, height)
+	b.drawCell(screen, cx, cy+1, bottomRight, fg, width, height)
+	b.drawCell(screen, cx-1, cy+2, bottomLeft, bright, width, height)
+	b.drawCell(screen, cx, cy+2, bottomRight, bright, width, height)
+}
+
+func (b *Butterfly) Hit(x, y int) {
+	b.active = false
+	b.explosionTicks = 6
+	b.explosionX = x
+	b.explosionY = y
+	b.respawnWait = 40 + rand.Intn(80)
+}
+
+func (b *Butterfly) HitPoint(width, height int) (int, int, bool) {
+	if !b.active {
+		return 0, 0, false
+	}
+	cx := int(math.Round(b.x))
+	wobble := math.Sin(b.wavePhase*1.7) * 0.8
+	cy := int(math.Round(b.baseY + math.Sin(b.wavePhase)*b.waveAmp + wobble))
+	if cx < 0 || cy < 0 || cx >= width || cy >= height {
+		return 0, 0, false
+	}
+	return cx, cy, true
+}
+
+func (b *Butterfly) drawExplosion(screen tcell.Screen) {
+	width, height := screen.Size()
+	fg := color.Yellow
+	if b.explosionTicks <= 2 {
+		fg = color.Red
+	}
+	center := Point{X: b.explosionX, Y: b.explosionY}
+	for _, p := range []Point{
+		center,
+		{X: center.X - 1, Y: center.Y},
+		{X: center.X + 1, Y: center.Y},
+		{X: center.X, Y: center.Y - 1},
+		{X: center.X, Y: center.Y + 1},
+		{X: center.X - 1, Y: center.Y - 1},
+		{X: center.X + 1, Y: center.Y - 1},
+		{X: center.X - 1, Y: center.Y + 1},
+		{X: center.X + 1, Y: center.Y + 1},
+	} {
+		if p.X < 0 || p.Y < 0 || p.X >= width || p.Y >= height {
+			continue
+		}
+		screen.SetContent(p.X, p.Y, tcell.RuneBullet, nil, tcell.StyleDefault.Foreground(fg))
+	}
 }
 
 func (b *Butterfly) drawCell(screen tcell.Screen, x, y int, r rune, fg tcell.Color, width, height int) {

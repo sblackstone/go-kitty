@@ -88,6 +88,7 @@ func (k *Kitty) Play(ctx context.Context) {
 			for _, o := range k.objects {
 				o.Update(k.s)
 			}
+			k.handleLaserHits()
 			for _, o := range k.objects {
 				o.Draw(k.s)
 			}
@@ -129,4 +130,42 @@ func New(config KittyConfig) (*Kitty, error) {
 		s:            s,
 		config:       config,
 	}, nil
+}
+
+func (k *Kitty) handleLaserHits() {
+	width, height := k.s.Size()
+	lasers := make([]Point, 0)
+	for _, o := range k.objects {
+		if l, ok := o.(*LaserPointer); ok {
+			if p, ok := l.Position(width, height); ok {
+				lasers = append(lasers, p)
+			}
+		}
+	}
+	if len(lasers) == 0 {
+		return
+	}
+	for _, o := range k.objects {
+		b, ok := o.(*Butterfly)
+		if !ok {
+			continue
+		}
+		bx, by, ok := b.HitPoint(width, height)
+		if !ok {
+			continue
+		}
+		for _, p := range lasers {
+			if absInt(p.X-bx) <= 1 && absInt(p.Y-by) <= 1 {
+				b.Hit(bx, by)
+				break
+			}
+		}
+	}
+}
+
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
