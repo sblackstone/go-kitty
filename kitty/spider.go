@@ -386,6 +386,8 @@ func (s *Spider) initSpider(width, height int) {
 	s.legPhase = spiderRandRange(0, math.Pi*2)
 	if s.Color == tcell.ColorDefault || s.Color == 0 {
 		s.Color = randomSpiderColor()
+	} else if s.Color == color.White {
+		s.Color = randomSpiderColor()
 	}
 	s.webSegments = []Point{}
 	s.webSpokes = []Point{}

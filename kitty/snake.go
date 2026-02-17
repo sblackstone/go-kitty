@@ -41,6 +41,11 @@ type Snake struct {
 }
 
 var snakeRandSeeded bool
+var snakeAvoidPoints []Point
+
+func SetSnakeAvoidPoints(points []Point) {
+	snakeAvoidPoints = points
+}
 
 func (s *Snake) Draw(screen tcell.Screen) {
 	width, height := screen.Size()
@@ -252,9 +257,13 @@ func (s *Snake) updateSteering(width, height int) {
 	if rand.Float64() < 0.02 {
 		s.amplitudeTarget = randRange(2.0, 10.0)
 	}
-	s.amplitude += (s.amplitudeTarget - s.amplitude) * 0.05
+	// reduce wiggle when moving fast
+	ampScale := clampFloat(2.0/(s.speed+0.5), 0.35, 1.0)
+	adjTarget := s.amplitudeTarget * ampScale
+	s.amplitude += (adjTarget - s.amplitude) * 0.05
 
 	// rotate heading toward target
+	s.applyWebAvoidance()
 	delta := normalizeAngle(s.turnTarget - s.heading)
 	if delta > s.turnSpeed {
 		delta = s.turnSpeed
@@ -262,6 +271,31 @@ func (s *Snake) updateSteering(width, height int) {
 		delta = -s.turnSpeed
 	}
 	s.heading = normalizeAngle(s.heading + delta)
+}
+
+func (s *Snake) applyWebAvoidance() {
+	if len(snakeAvoidPoints) == 0 {
+		return
+	}
+	const avoidRadius = 6.0
+	var ax, ay float64
+	for _, p := range snakeAvoidPoints {
+		dx := s.posX - float64(p.X)
+		dy := s.posY - float64(p.Y)
+		dist := math.Hypot(dx, dy)
+		if dist <= 0 || dist > avoidRadius {
+			continue
+		}
+		strength := (avoidRadius - dist) / avoidRadius
+		ax += (dx / dist) * strength
+		ay += (dy / dist) * strength
+	}
+	if ax == 0 && ay == 0 {
+		return
+	}
+	avoidAngle := math.Atan2(ay, ax)
+	s.turnTarget = blendAngle(s.turnTarget, avoidAngle, 0.65)
+	s.turnSpeed = maxFloat(s.turnSpeed, 0.2)
 }
 
 func (s *Snake) nextHead() Point {
@@ -332,6 +366,18 @@ func normalizeAngle(a float64) float64 {
 		a += math.Pi * 2
 	}
 	return a
+}
+
+func blendAngle(a, b, t float64) float64 {
+	delta := normalizeAngle(b - a)
+	return normalizeAngle(a + delta*t)
+}
+
+func maxFloat(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func randomEdgePoint(width, height int) (float64, float64) {

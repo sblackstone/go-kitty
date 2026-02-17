@@ -92,6 +92,7 @@ func (k *Kitty) Play(ctx context.Context) {
 			return
 		default:
 			k.s.Clear()
+			SetSnakeAvoidPoints(k.collectWebPoints())
 			for _, o := range k.objects {
 				o.Update(k.s)
 			}
@@ -142,11 +143,15 @@ func New(config KittyConfig) (*Kitty, error) {
 
 func (k *Kitty) handleLaserHits() {
 	width, height := k.s.Size()
-	lasers := make([]Point, 0)
+	type laserHit struct {
+		laser *LaserPointer
+		pos   Point
+	}
+	lasers := make([]laserHit, 0)
 	for _, o := range k.objects {
 		if l, ok := o.(*LaserPointer); ok {
 			if p, ok := l.Position(width, height); ok {
-				lasers = append(lasers, p)
+				lasers = append(lasers, laserHit{laser: l, pos: p})
 			}
 		}
 	}
@@ -162,8 +167,9 @@ func (k *Kitty) handleLaserHits() {
 		if !ok {
 			continue
 		}
-		for _, p := range lasers {
-			if absInt(p.X-bx) <= 1 && absInt(p.Y-by) <= 1 {
+		for _, l := range lasers {
+			if absInt(l.pos.X-bx) <= 1 && absInt(l.pos.Y-by) <= 1 {
+				l.laser.TriggerFire()
 				b.Hit(bx, by)
 				break
 			}
@@ -179,8 +185,9 @@ func (k *Kitty) handleLaserHits() {
 			if !ok {
 				continue
 			}
-			for _, p := range lasers {
-				if absInt(p.X-sx) <= 1 && absInt(p.Y-sy) <= 1 {
+			for _, l := range lasers {
+				if absInt(l.pos.X-sx) <= 1 && absInt(l.pos.Y-sy) <= 1 {
+					l.laser.TriggerFire()
 					s.Hit(sx, sy)
 					break
 				}
@@ -256,6 +263,18 @@ func (k *Kitty) handleWebCollisions() {
 			}
 		}
 	}
+}
+
+func (k *Kitty) collectWebPoints() []Point {
+	var webPoints []Point
+	for _, o := range k.objects {
+		spider, ok := o.(*Spider)
+		if !ok {
+			continue
+		}
+		webPoints = append(webPoints, spider.GetWebPoints()...)
+	}
+	return webPoints
 }
 
 func absInt(v int) int {
